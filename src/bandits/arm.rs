@@ -52,7 +52,7 @@ impl MultiArm {
 
         // run the benchmark
         for _ in 0..runs {
-            let mut bandits: Vec<_> = bandits.iter().map(|x| x.having_init_values(0.0)).collect();
+            let mut bandits: Vec<_> = bandits.iter().map(|x| x.having_init_values(x.init_value)).collect();
 
             for t in 0..steps {
                 for (i, bandit) in bandits.iter_mut().enumerate() {
