@@ -8,6 +8,7 @@ pub struct Bandit {
     estimated_arm_values: Vec<f32>,
     arm_pulls: Vec<u32>,
     action: usize,
+    pub init_value: f32
 }
 
 impl Bandit {
@@ -19,6 +20,7 @@ impl Bandit {
             estimated_arm_values: vec![0_f32; arms],
             arm_pulls: vec![0; arms],
             action: 0,
+            init_value: 0_f32
         }
     }
 
@@ -30,6 +32,7 @@ impl Bandit {
             estimated_arm_values: vec![0_f32; arms],
             arm_pulls: vec![0; arms],
             action: 0,
+            init_value: 0_f32
         }
     }
 
@@ -45,6 +48,7 @@ impl Bandit {
             estimated_arm_values: self.estimated_arm_values.clone(),
             arm_pulls: vec![0; self.n_arms],
             action: 0,
+            init_value: self.init_value
         }
     }
 
@@ -56,6 +60,7 @@ impl Bandit {
             estimated_arm_values: vec![value; self.n_arms],
             arm_pulls: vec![0; self.n_arms],
             action: 0,
+            init_value: value
         }
     }
 
