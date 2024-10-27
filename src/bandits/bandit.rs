@@ -1,5 +1,6 @@
 use rand::{random, Rng};
 
+#[derive(Debug)]
 pub struct Bandit {
     n_arms: usize,
     epsilon: f32,
@@ -64,13 +65,13 @@ impl Bandit {
         if exploration_probability > 1.0 - self.epsilon {
             self.action = rand::thread_rng().gen_range(0..self.n_arms);
         } else {
-            let mut max_value = f32::NEG_INFINITY;
-            for (a, value) in self.estimated_arm_values.iter().enumerate() {
-                if max_value < *value {
-                    self.action = a;
-                    max_value = *value;
-                }
-            }
+            self.action = self
+                .estimated_arm_values
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.total_cmp(b))
+                .map(|(index, _)| index)
+                .unwrap();
         }
         self.action
     }
