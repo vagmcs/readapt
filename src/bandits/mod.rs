@@ -1,2 +1,2 @@
-mod bandit;
-mod arm;
+pub mod arm;
+pub mod bandit;
