@@ -1,15 +1,15 @@
 use rand::{random, Rng};
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Bandit {
     n_arms: usize,
-    c: Option<f32>,
-    epsilon: f32,
-    learning_rate: Option<f32>,
-    estimated_arm_values: Vec<f32>,
+    c: Option<f64>,
+    epsilon: f64,
+    learning_rate: Option<f64>,
+    estimated_arm_values: Vec<f64>,
     arm_pulls: Vec<u32>,
     action: usize,
-    pub init_value: f32,
+    pub init_value: f64,
     step: usize,
 }
 
@@ -18,45 +18,45 @@ impl Bandit {
         Bandit {
             n_arms: arms,
             c: None,
-            epsilon: 0_f32,
+            epsilon: 0_f64,
             learning_rate: None,
-            estimated_arm_values: vec![0_f32; arms],
+            estimated_arm_values: vec![0_f64; arms],
             arm_pulls: vec![0; arms],
             action: 0,
-            init_value: 0_f32,
-            step: 0
+            init_value: 0_f64,
+            step: 0,
         }
     }
 
-    pub fn epsilon_greedy(arms: usize, epsilon: f32) -> Bandit {
+    pub fn epsilon_greedy(arms: usize, epsilon: f64) -> Bandit {
         Bandit {
             n_arms: arms,
             c: None,
             epsilon,
             learning_rate: None,
-            estimated_arm_values: vec![0_f32; arms],
+            estimated_arm_values: vec![0_f64; arms],
             arm_pulls: vec![0; arms],
             action: 0,
-            init_value: 0_f32,
-            step: 0
+            init_value: 0_f64,
+            step: 0,
         }
     }
 
-    pub fn ucb(arms: usize, c: f32) -> Bandit {
+    pub fn ucb(arms: usize, c: f64) -> Bandit {
         Bandit {
             n_arms: arms,
             c: Some(c),
-            epsilon: 0_f32,
+            epsilon: 0_f64,
             learning_rate: None,
-            estimated_arm_values: vec![0_f32; arms],
+            estimated_arm_values: vec![0_f64; arms],
             arm_pulls: vec![0; arms],
             action: 0,
-            init_value: 0_f32,
-            step: 0
+            init_value: 0_f64,
+            step: 0,
         }
     }
 
-    pub fn having_constant_learning_rate(&self, alpha: f32) -> Bandit {
+    pub fn having_constant_learning_rate(&self, alpha: f64) -> Bandit {
         if alpha <= 0.0 || alpha > 1.0 {
             panic!("Invalid alpha value: {alpha}");
         }
@@ -70,11 +70,11 @@ impl Bandit {
             arm_pulls: vec![0; self.n_arms],
             action: 0,
             init_value: self.init_value,
-            step: 0
+            step: 0,
         }
     }
 
-    pub fn having_init_values(&self, value: f32) -> Bandit {
+    pub fn having_init_values(&self, value: f64) -> Bandit {
         Bandit {
             n_arms: self.n_arms,
             c: self.c,
@@ -84,7 +84,7 @@ impl Bandit {
             arm_pulls: vec![0; self.n_arms],
             action: 0,
             init_value: value,
-            step: 0
+            step: 0,
         }
     }
 
@@ -99,20 +99,21 @@ impl Bandit {
                 .unwrap();
         }
         if self.c.is_some() {
-            self.action = self.estimated_arm_values
+            self.action = self
+                .estimated_arm_values
                 .iter()
                 .enumerate()
                 .map(|(i, v)| {
-                    v + self.c.unwrap() * f32::sqrt(f32::ln(self.step as f32) / self.arm_pulls[i] as f32)
+                    v + self.c.unwrap()
+                        * f64::sqrt(f64::ln(self.step as f64) / self.arm_pulls[i] as f64)
                 })
                 .enumerate()
                 .max_by(|(_, a), (_, b)| a.total_cmp(b))
                 .map(|(index, _)| index)
                 .unwrap();
-        }
-        else {
+        } else {
             // select the next action either randomly or according to the maximum estimated value
-            let exploration_probability: f32 = random();
+            let exploration_probability: f64 = random();
             if exploration_probability > 1.0 - self.epsilon {
                 self.action = rand::thread_rng().gen_range(0..self.n_arms);
             } else {
@@ -129,7 +130,7 @@ impl Bandit {
         self.action
     }
 
-    pub fn receive_reward(&mut self, reward: f32) {
+    pub fn receive_reward(&mut self, reward: f64) {
         // increment the arm pulls
         self.step += 1;
         self.arm_pulls[self.action] += 1;
@@ -137,7 +138,7 @@ impl Bandit {
         // determine the step size (learning rate)
         let alpha = self
             .learning_rate
-            .unwrap_or(1.0 / self.arm_pulls[self.action] as f32);
+            .unwrap_or(1.0 / self.arm_pulls[self.action] as f64);
 
         // update the estimated value for the best action
         self.estimated_arm_values[self.action] +=
