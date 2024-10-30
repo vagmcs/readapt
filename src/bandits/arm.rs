@@ -1,6 +1,5 @@
 use rand_distr::Distribution;
 use rand_distr::Normal;
-use std::cmp::Ordering;
 
 pub trait Arm {
     /// Return the true value of the arm or none if the value is unknown.
