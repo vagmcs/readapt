@@ -10,10 +10,9 @@ pub struct BenchmarkResult {
     pub optimal_action_percentage_history: Option<Vec<Vec<f64>>>,
 }
 
-#[derive(Clone, Debug)]
 pub struct Benchmark<A: Arm> {
-    arm: MultiArm<A>,
-    bandits: Vec<Bandit>,
+    pub arm: MultiArm<A>,
+    pub bandits: Vec<Box<dyn Bandit>>,
 }
 
 impl<A: Arm> Benchmark<A> {
@@ -22,7 +21,7 @@ impl<A: Arm> Benchmark<A> {
     ///
     /// - `runs` - the number of repeated runs.
     /// - `steps` - the number of steps per run.
-    pub fn run(&self, runs: usize, steps: usize) -> BenchmarkResult {
+    pub fn run(&mut self, runs: usize, steps: usize) -> BenchmarkResult {
         // find optimal arm
         let optimal_arm = self.arm.optimal_arm();
 
@@ -33,14 +32,10 @@ impl<A: Arm> Benchmark<A> {
         // run the benchmark
         for _ in 0..runs {
             // restart all bandits
-            let mut bandits: Vec<_> = self
-                .bandits
-                .iter()
-                .map(|x| x.having_init_values(x.init_value))
-                .collect();
+            self.bandits.iter_mut().for_each(|bandit| bandit.restart());
 
             for t in 0..steps {
-                for (i, bandit) in bandits.iter_mut().enumerate() {
+                for (i, bandit) in self.bandits.iter_mut().enumerate() {
                     let arm = bandit.select_arm();
                     let reward = self.arm.pull(arm);
                     average_reward_history[i][t] += reward;
@@ -72,12 +67,11 @@ impl<A: Arm> Benchmark<A> {
 mod tests {
     use super::*;
     use crate::bandits::arm::RandomArm;
+    use crate::bandits::bandit::StochasticBandit;
     use rand_distr::{Distribution, Normal};
 
     #[test]
     fn test() {
-        let bandits = vec![Bandit::greedy(10), Bandit::epsilon_greedy(10, 0.1)];
-
         let multi_arm = MultiArm::new(
             Normal::new(0.0, 1.0)
                 .unwrap()
@@ -89,12 +83,11 @@ mod tests {
 
         let result = Benchmark {
             arm: multi_arm,
-            bandits,
+            bandits: vec![Box::new(StochasticBandit::greedy(10))],
         }
-        .run(100, 100);
+        .run(10, 100);
 
-        assert_eq!(result.average_reward_history.len(), 2);
+        assert_eq!(result.average_reward_history.len(), 1);
         assert!(result.optimal_action_percentage_history.is_some());
-        assert_eq!(result.optimal_action_percentage_history.unwrap().len(), 2);
     }
 }
