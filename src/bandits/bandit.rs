@@ -264,10 +264,12 @@ mod tests {
 
     #[test]
     fn constant_learning_rate() {
-        let bandit = StochasticBandit::greedy(5)
+        let mut bandit = StochasticBandit::greedy(5)
             .with_constant_learning_rate(0.5)
             .with_biased_state(1.5)
             .with_constant_learning_rate(1.0);
+
+        bandit.restart();
 
         assert_eq!(bandit.learning_rate, Some(1.0));
         assert_eq!(bandit.state.estimated_arm_values, vec![1.5; 5]);
