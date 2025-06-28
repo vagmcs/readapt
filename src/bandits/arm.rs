@@ -42,7 +42,7 @@ impl RandomArm<Normal<f64>> {
     ///
     /// # Example
     ///```
-    /// use deathloop::bandits::arm::{Arm, RandomArm};
+    /// use readapt::bandits::arm::{Arm, RandomArm};
     ///
     /// // the following arm yield rewards following a standard normal distribution, i.e.,
     /// // having zero mean and unit variance.

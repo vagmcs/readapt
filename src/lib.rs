@@ -1,8 +1,9 @@
 //!
-//! `deathloop` is a collection of algorithms for performing reinforcement.
+//! `readapt` is a collection of algorithms for performing reinforcement.
 //!
-//! > The term *deathloop* implies that an artificial agent is stuck in a time loop
-//! > trying to break free through learning and failing achieving a certain goal.
+//! > The term *readapt* signifies an artificial agent caught in a continuous cycle of learning
+//! > and relearning — persistently stuck in a time loop where it strives to break free by failing
+//! > and adapting through repeated attempts to achieve a goal.
 
 /// Stochastic bandits algorithms
 pub mod bandits;
