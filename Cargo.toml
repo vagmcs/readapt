@@ -1,12 +1,12 @@
 [package]
-name = "deathloop"
+name = "readapt"
 version = "0.1.0"
 authors = ["Evangelos Michelioudakis <vagmcs@gmail.com>"]
 edition = "2021"
 description = "A reinforcement learning library"
-documentation = "https://docs.rs/deathloop"
+documentation = "https://docs.rs/readapt"
 readme = "README.md"
-repository = "https://github.com/vagmcs/deathloop"
+repository = "https://github.com/vagmcs/readapt"
 license = "MIT"
 keywords = ["ai", "machine-learning", "reinforcement"]
 categories = ["algorithms", "mathematics", "science"]
