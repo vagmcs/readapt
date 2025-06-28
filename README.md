@@ -1,8 +1,8 @@
-# Deathloop
+# Readapt
 
-Deathloop provides a library for reinforcement learning written in Rust.
+Readapt provides a library for reinforcement learning written in Rust.
 
-> The term *deathloop* implies that an artificial agent is stuck in a time loop trying to break free through learning and failing achieving a goal. 
+> The term *readapt* signifies an artificial agent caught in a continuous cycle of learning and relearning — persistently stuck in a time loop where it strives to break free by failing and adapting through repeated attempts to achieve a goal.
 
 ## License
 
