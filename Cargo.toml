@@ -14,4 +14,4 @@ categories = [ "algorithms", "mathematics", "science" ]
 
 [dependencies]
 rand = "0.8.5"
-rand_distr = "0.4.3"
+rand_distr = "0.5.1"
