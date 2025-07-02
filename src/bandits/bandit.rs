@@ -54,7 +54,7 @@ impl BanditState {
 #[derive(Debug, Clone)]
 enum BanditAlgorithm {
     EpsilonGreedy(EpsilonGreedy),
-    UCB(UCB),
+    Ucb(Ucb),
 }
 
 #[derive(Debug, Default, Clone)]
@@ -63,7 +63,7 @@ struct EpsilonGreedy {
 }
 
 #[derive(Debug, Default, Clone)]
-struct UCB {
+struct Ucb {
     exploration_degree: f64,
 }
 
@@ -118,7 +118,7 @@ impl StochasticBandit {
     pub fn ucb(arms: usize, exploration_degree: f64) -> StochasticBandit {
         StochasticBandit {
             state: BanditState::new(arms),
-            algorithm: BanditAlgorithm::UCB(UCB { exploration_degree }),
+            algorithm: BanditAlgorithm::Ucb(Ucb { exploration_degree }),
             learning_rate: None,
         }
     }
@@ -175,7 +175,7 @@ impl Bandit for StochasticBandit {
                         .unwrap();
                 }
             }
-            BanditAlgorithm::UCB(bandit) => {
+            BanditAlgorithm::Ucb(bandit) => {
                 self.state.selected_arm = self
                     .state
                     .estimated_arm_values
