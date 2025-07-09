@@ -75,5 +75,7 @@ mod tests {
         assert_eq!(random_policy.mapping.len(), 5);
         // there should be an action for each state
         assert!((0..4).all(|state| random_policy.select_action(state).is_some()));
+        // there should be no action for state 10
+        assert!(random_policy.select_action(10).is_none());
     }
 }
