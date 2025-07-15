@@ -1,4 +1,5 @@
-use rand::distributions::{Distribution, Uniform};
+use crate::mdp::model::{Action, State};
+use rand::seq::SliceRandom;
 use std::collections::HashMap;
 
 /// Represents a policy in a Markov Decision Process (MDP), which defines a mapping
@@ -8,30 +9,47 @@ use std::collections::HashMap;
 ///
 /// # Examples
 ///
-/// Create a custom policy that maps state 1 to action 10.
+/// Create a custom policy that maps a state to an action.
 ///
 /// ```
 /// use std::collections::HashMap;
 /// use readapt::mdp::policy::Policy;
+/// use readapt::mdp::model::{State, Action};
 ///
-/// let policy = Policy::new(HashMap::from([(1, 10)]));
+/// #[derive(Hash, PartialEq, Eq)]
+/// struct S { id: usize }
 ///
-/// if let Some(action) = policy.select_action(1) {
-///     assert_eq!(*action, 10);
+/// #[derive(Debug, PartialEq)]
+/// struct A { id: usize }
+///
+/// impl State for S {
+///     fn id(&self) -> usize { self.id }
+/// }
+///
+/// impl Action for A {
+///     fn id(&self) -> usize { self.id }
+/// }
+///
+/// let state = S { id: 1 };
+/// let action = A { id: 10 };
+/// let policy = Policy::new(HashMap::from([(&state, &action)]));
+///
+/// if let Some(selected_action) = policy.select_action(&state) {
+///     assert_eq!(*selected_action, action);
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq)]
-pub struct Policy {
-    mapping: HashMap<usize, usize>,
+#[derive(Debug, PartialEq, Eq)]
+pub struct Policy<'a, S: State, A: Action> {
+    mapping: HashMap<&'a S, &'a A>,
 }
 
-impl Policy {
+impl<'a, S: State, A: Action> Policy<'a, S, A> {
     /// Creates a custom policy.
     ///
     /// # Arguments
     ///
     /// - `mapping` - a hash map from states to actions
-    pub fn new(mapping: HashMap<usize, usize>) -> Self {
+    pub fn new(mapping: HashMap<&'a S, &'a A>) -> Self {
         Self { mapping }
     }
 
@@ -39,17 +57,18 @@ impl Policy {
     ///
     /// # Arguments
     ///
-    /// - `n_states` - number of states
-    /// - `n_actions` - number of actions
-    pub fn random(n_states: usize, n_actions: usize) -> Self {
-        Self {
-            mapping: HashMap::from_iter(
-                Uniform::new(0, n_actions) // sample a random action
-                    .sample_iter(&mut rand::thread_rng())
-                    .take(n_states)
-                    .enumerate(),
-            ),
-        }
+    /// - `states` - an iterator over states
+    /// - `actions` - an iterator over actions
+    pub fn random(states: &'a [S], actions: &'a [A]) -> Self {
+        let mut rng = rand::thread_rng();
+        let mapping = states
+            .iter()
+            .map(|state| {
+                let action = actions.choose(&mut rng).expect("Actions must not be empty");
+                (state, action)
+            })
+            .collect();
+        Self { mapping }
     }
 
     /// Returns the corresponding policy action for the given state, or None if
@@ -58,24 +77,54 @@ impl Policy {
     /// # Arguments
     ///
     /// - `state` - the state of interest
-    pub fn select_action(&self, state: usize) -> Option<&usize> {
-        self.mapping.get(&state)
+    pub fn select_action(&self, state: &S) -> Option<&A> {
+        self.mapping.get(state).copied()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::mdp::policy::Policy;
+    use crate::mdp::{
+        model::{Action, State},
+        policy::Policy,
+    };
+
+    #[derive(Debug, Hash, PartialEq, Eq)]
+    struct S {
+        id: usize,
+    }
+
+    impl State for S {
+        fn id(&self) -> usize {
+            self.id
+        }
+    }
+
+    struct A {
+        id: usize,
+    }
+
+    impl Action for A {
+        fn id(&self) -> usize {
+            self.id
+        }
+    }
 
     #[test]
     fn random_policy() {
-        let random_policy = Policy::random(5, 4);
+        let states: Vec<S> = (0..5).map(|id| S { id }).collect();
+        let actions: Vec<A> = (0..4).map(|id| A { id }).collect();
+        let random_policy = Policy::random(&states, &actions);
 
         // there should be 5 states in the policy
         assert_eq!(random_policy.mapping.len(), 5);
+
         // there should be an action for each state
-        assert!((0..4).all(|state| random_policy.select_action(state).is_some()));
+        assert!(states
+            .iter()
+            .all(|state| random_policy.select_action(state).is_some()));
+
         // there should be no action for state 10
-        assert!(random_policy.select_action(10).is_none());
+        assert!(random_policy.select_action(&S { id: 10 }).is_none());
     }
 }
