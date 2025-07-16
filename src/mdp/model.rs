@@ -1,6 +1,8 @@
 use crate::mdp::policy::Policy;
 use rand::Rng;
+use std::error::Error;
 use std::fmt;
+use std::fmt::Debug;
 use std::hash::Hash;
 
 #[derive(Debug)]
@@ -8,6 +10,8 @@ pub enum MDPError<'a, S: State> {
     NoAction { state: &'a S },
     NoTransition { state: &'a S },
 }
+
+impl<'a, S: State> Error for MDPError<'a, S> {}
 
 impl<'a, S: State> fmt::Display for MDPError<'a, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -54,7 +58,7 @@ pub struct Episode<'a, S: State> {
 /// assert_eq!(states.len(), 5);
 /// assert_eq!(states.iter().map(|state| state.id()).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
 /// ```
-pub trait State: Hash + Eq {
+pub trait State: Debug + Hash + Eq {
     fn id(&self) -> usize;
 }
 
