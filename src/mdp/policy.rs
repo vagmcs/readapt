@@ -16,7 +16,7 @@ use std::collections::HashMap;
 /// use readapt::mdp::policy::Policy;
 /// use readapt::mdp::model::{State, Action};
 ///
-/// #[derive(Hash, PartialEq, Eq)]
+/// #[derive(Debug, Hash, PartialEq, Eq)]
 /// struct S { id: usize }
 ///
 /// #[derive(Debug, PartialEq)]
