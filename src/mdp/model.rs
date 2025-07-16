@@ -46,7 +46,7 @@ pub struct Episode<'a, S: State> {
 /// ```
 /// use readapt::mdp::model::State;
 ///
-/// #[derive(Hash, PartialEq, Eq)]
+/// #[derive(Debug, Hash, PartialEq, Eq)]
 /// struct S { id: usize }
 ///
 /// impl State for S {
