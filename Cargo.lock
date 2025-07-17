@@ -63,6 +63,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pre-commit"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0f2b9887f84ec91cd86f71c193b883209d744bc8c2a3363c6b1df88efa5af8f"
+dependencies = [
+ "rustc-serialize",
+ "toml",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -124,9 +134,16 @@ dependencies = [
 name = "readapt"
 version = "0.1.1"
 dependencies = [
+ "pre-commit",
  "rand",
  "rand_distr",
 ]
+
+[[package]]
+name = "rustc-serialize"
+version = "0.3.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe834bc780604f4674073badbad26d7219cadfb4a2275802db12cbae17498401"
 
 [[package]]
 name = "syn"
@@ -137,6 +154,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "toml"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "736b60249cb25337bc196faa43ee12c705e426f3d55c214d73a4e7be06f92cb4"
+dependencies = [
+ "rustc-serialize",
 ]
 
 [[package]]
