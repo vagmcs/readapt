@@ -1,17 +1,7 @@
 name: Pull Request Manager
 
-# on:
-#   pull_request_target:
-#     types:
-#       - opened
-#       - synchronize
-#       - reopened
-#       - edited
-
 on:
-  pull_request:
-    branches:
-      - main
+  pull_request_target:
     types:
       - opened
       - synchronize
