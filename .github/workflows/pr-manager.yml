@@ -9,9 +9,14 @@ name: Pull Request Manager
 #       - edited
 
 on:
-  push:
+  pull_request:
     branches:
-      - 7-configure-ci
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
 
 permissions:
   contents: read
