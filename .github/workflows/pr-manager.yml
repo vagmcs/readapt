@@ -21,12 +21,9 @@ jobs:
   assign-labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/labeler@v5
-        with:
-          sync-labels: true
+      - uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   check-title:
     runs-on: ubuntu-latest
     steps:
