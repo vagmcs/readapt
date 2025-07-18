@@ -78,8 +78,8 @@ categories:
     label: security
   - title: 🛠️ Other improvements
     labels:
-      - internal
       - refactor
+      - internal
       - test
 
 # exclude skip changelog and release labels
