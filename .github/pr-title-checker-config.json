@@ -1,10 +1,10 @@
 {
   "LABEL": {
-    "name": "PR invalid format",
+    "name": "invalid",
     "color": "EEEEEE"
   },
   "CHECKS": {
-    "regexp": "^(build|chore|ci|depr|docs|feat|fix|perf|refactor|release|test)(\\((python|rust)\\!?(,(python|rust)\\!?)?\\))?\\!?\\: [A-Z].*[^\\.\\!\\?,… ]$",
+    "regexp": "^(build|chore|ci|docs|feat|fix|perf|refactor|release|test|security)\\!?: [A-Z].*[A-Za-z]$",
     "ignoreLabels" : ["skip changelog"]
   },
   "MESSAGES": {
