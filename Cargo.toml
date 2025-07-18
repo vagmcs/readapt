@@ -12,6 +12,12 @@ keywords = [ "ai", "machine-learning", "reinforcement" ]
 categories = [ "algorithms", "mathematics", "science" ]
 
 
+[package.metadata.precommit]
+fmt = "cargo fmt -- --check 2>&1"
+test = "cargo test 2>&1"
+
+
 [dependencies]
+pre-commit = "0.5.2"
 rand = "0.8.5"
 rand_distr = "0.4.3"
