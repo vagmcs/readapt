@@ -6,6 +6,7 @@ on:
       - opened
       - synchronize
       - reopened
+      - edited
 
 permissions:
   contents: read
@@ -26,11 +27,18 @@ jobs:
       - uses: actions/labeler@v5
         with:
           sync-labels: true
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: thehanimo/pr-title-checker@v1.4.3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   check:
     if: always()
     needs:
     - assign-author
     - assign-labels
+    - check-title
     runs-on: ubuntu-latest
 
     steps:
