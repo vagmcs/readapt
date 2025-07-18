@@ -6,14 +6,14 @@ build:
   - changed-files:
       - any-glob-to-any-file: ["Cargo.toml"]
 
-docs:
+documentation:
   - changed-files:
       - any-glob-to-any-file: ["docs/**", "**/*.md"]
 
-core:
+rust:
   - changed-files:
       - any-glob-to-any-file: ["src/**"]
 
-tests:
+test:
   - changed-files:
       - any-glob-to-any-file: ["tests/**"]
