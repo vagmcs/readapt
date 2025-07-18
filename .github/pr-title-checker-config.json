@@ -1,0 +1,17 @@
+{
+  "LABEL": {
+    "name": "invalid",
+    "color": "EEEEEE"
+  },
+  "CHECKS": {
+    "regexp": "^(build|chore|ci|docs|feat|fix|perf|refactor|release|test|security)\\!?: [A-Z].*[A-Za-z]$",
+    "ignoreLabels" : ["skip changelog"]
+  },
+  "MESSAGES": {
+    "success": "PR title OK",
+    "failure": "Invalid PR title! Please update according to the contributing guidelines: https://github.com/vagmcs/readapt/blob/main/CONTRIBUTING.md",
+    "notice": ""
+  }
+}
+
+    
