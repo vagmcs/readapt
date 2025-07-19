@@ -7,3 +7,5 @@
 
 /// Stochastic bandits algorithms
 pub mod bandits;
+/// Markov decision processes
+pub mod mdp;
