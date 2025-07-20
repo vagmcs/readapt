@@ -1,5 +1,4 @@
 use crate::mdp::policy::Policy;
-use rand::Rng;
 use std::error::Error;
 use std::fmt;
 use std::fmt::Debug;
@@ -65,7 +64,7 @@ pub trait State: Debug + Hash + Eq {
 /// Represents an action in the MDP. Each action should have a unique index or ID,
 /// always starting from 0, up to the number of actions. However, the user of the trait
 /// is responsible to ensure that action indices are unique across the MDP states.
-pub trait Action {
+pub trait Action: Debug + Eq {
     fn id(&self) -> usize;
 }
 
@@ -78,21 +77,35 @@ pub trait Action {
 pub trait MDP<S: State, A: Action> {
     /// Returns the number of states.
     fn n_states(&self) -> usize;
+
+    /// Returns all states.
+    fn states(&self) -> &[S];
+
     /// Returns the number of actions.
     fn n_actions(&self) -> usize;
+
+    /// Returns all actions.
+    fn actions(&self) -> &[A];
+
     /// Returns true if the given state is a terminal.
     fn is_terminal(&self, state: &S) -> bool;
+
     /// Discount factor determines the value of future rewards. By default
     /// this function always returns 1, which accounts for no discount.
-    #[rustfmt::skip]
     #[inline(always)]
-    fn discount_factor(&self) -> f64 { 1.0 }
-    /// Returns a vector of possible states
-    fn next_states<'a>(&'a self, state: &'a S, action: &'a A) -> Vec<&'a S>;
+    fn discount_factor(&self) -> f64 {
+        1.0
+    }
+
     /// Returns the transition probability of the triplet (state, action, state).
     fn transition_probability(&self, state: &S, action: &A, next_state: &S) -> f64;
+
     /// Returns the reward for the triplet (state, action, state).
     fn reward(&self, state: &S, action: &A, next_state: &S) -> f64;
+
+    /// Acts on the given state using the given action and returns the next state.
+    fn act(&self, state: &S, action: &A) -> &S;
+
     /// Executes a given policy on the MDP and returns an episode.
     ///
     /// # Arguments
@@ -107,41 +120,25 @@ pub trait MDP<S: State, A: Action> {
         maximum_steps: usize,
     ) -> Result<Episode<'a, S>, MDPError<'a, S>> {
         let mut total_reward = 0f64;
-        let mut trajectory = Vec::new();
-        let mut current_state = starting_state;
+        let mut trajectory = vec![starting_state];
+        let mut state = starting_state;
 
         for _ in 0..maximum_steps {
             // select policy action and place the agent to the next state
-            match policy.select_action(current_state) {
+            match policy.select_action(state) {
                 Some(action) => {
-                    let possible_states = self.next_states(current_state, action);
-                    if possible_states.is_empty() {
-                        return Err(MDPError::NoTransition {
-                            state: current_state,
-                        });
-                    } else {
-                        for next_state in possible_states {
-                            let prob =
-                                self.transition_probability(current_state, action, next_state);
-                            if prob > rand::thread_rng().gen() {
-                                trajectory.push(next_state);
-                                current_state = next_state;
-                                total_reward += self.reward(current_state, action, next_state);
-                            } else {
-                                trajectory.push(current_state);
-                                total_reward += self.reward(current_state, action, current_state);
-                            }
-                        }
-                    }
+                    let next_state = self.act(state, action);
+                    trajectory.push(next_state);
+                    total_reward += self.reward(state, action, next_state);
+                    state = next_state;
                 }
                 None => {
-                    // there is no action, therefore remain in the current state
-                    trajectory.push(current_state);
+                    return Err(MDPError::NoAction { state });
                 }
             };
 
             // if current state is terminal (after the action) then break
-            if self.is_terminal(current_state) {
+            if self.is_terminal(state) {
                 break;
             }
         }
@@ -156,8 +153,11 @@ pub trait MDP<S: State, A: Action> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::mdp::model::{Action, State, MDP};
     use crate::mdp::policy::Policy;
+    use rand::Rng;
 
     #[derive(Debug, Hash, PartialEq, Eq)]
     struct S {
@@ -170,6 +170,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug, PartialEq, Eq)]
     enum A {
         Forward,
         Backward,
@@ -181,12 +182,12 @@ mod tests {
         }
     }
 
-    struct Grid {
+    struct Line {
         states: Vec<S>,
         actions: Vec<A>,
     }
 
-    impl MDP<S, A> for Grid {
+    impl MDP<S, A> for Line {
         fn n_states(&self) -> usize {
             self.states.len()
         }
@@ -195,34 +196,71 @@ mod tests {
             self.actions.len()
         }
 
+        fn states(&self) -> &[S] {
+            &self.states
+        }
+
+        fn actions(&self) -> &[A] {
+            &self.actions
+        }
+
         fn is_terminal(&self, state: &S) -> bool {
             state.id() == self.n_states() - 1
         }
 
-        fn next_states(&self, state: &S, _action: &A) -> Vec<&S> {
-            self.states
-                .iter()
-                .filter(|s| {
-                    (state.id() == 0 && s.id() == 1)
-                        || (state.id() > 0 && s.id() == state.id() - 1)
-                        || (state.id() == self.n_states() - 1 && s.id() == state.id() - 1)
-                        || (state.id() < self.n_states() - 1 && s.id() == state.id() + 1)
-                })
-                .collect()
+        fn act(&self, state: &S, _: &A) -> &S {
+            if rand::thread_rng().gen_bool(0.5) {
+                // forward
+                if state.id() != self.n_states() - 1 {
+                    &self.states[state.id() + 1]
+                } else {
+                    &self.states[state.id()]
+                }
+            } else {
+                // backward
+                if state.id() != 0 {
+                    &self.states[state.id() - 1]
+                } else {
+                    &self.states[0]
+                }
+            }
         }
 
-        fn transition_probability(&self, _state: &S, _action: &A, _next_state: &S) -> f64 {
-            1f64 / self.n_actions() as f64 // every action has equal probability to succeed
+        fn transition_probability(&self, state: &S, action: &A, next_state: &S) -> f64 {
+            match action {
+                A::Forward if state.id() == next_state.id() - 1 => 0.5,
+                A::Backward if state.id() == next_state.id() + 1 => 0.5,
+                _ => 0.0,
+            }
         }
 
-        fn reward(&self, _state: &S, _action: &A, next_state: &S) -> f64 {
-            -((next_state.id() != self.n_states() - 1) as i8) as f64
+        #[rustfmt::skip]
+        fn reward(&self, _: &S, _: &A, next_state: &S) -> f64 {
+            if next_state.id() != self.n_states() - 1 { -1.0 } else { 0.0 }
         }
     }
 
     #[test]
+    fn run_incomplete_policy() {
+        let env = Line {
+            states: (0..2).map(|id| S { id }).collect(),
+            actions: vec![A::Forward, A::Backward],
+        };
+
+        // creates a policy having no action for the starting state
+        let incomplete_policy = Policy::new(HashMap::from([(&env.states[1], &A::Forward)]));
+        let episode = env.run_policy(&incomplete_policy, &env.states[0], 10);
+
+        assert!(episode.is_err());
+        assert!(episode
+            .unwrap_err()
+            .to_string()
+            .contains("No action available for state 0."));
+    }
+
+    #[test]
     fn run_random_policy() {
-        let env = Grid {
+        let env = Line {
             states: (0..10).map(|id| S { id }).collect(),
             actions: vec![A::Forward, A::Backward],
         };
@@ -234,15 +272,24 @@ mod tests {
         // create a random policy (random assignment of states to actions) and run the policy on the environment
         let policy = Policy::random(&env.states, &env.actions);
         let episode = env
-            .run_policy(&policy, starting_state.unwrap(), 1000)
+            .run_policy(&policy, starting_state.unwrap(), 100)
             .unwrap();
 
         // starting state is always zero
         assert_eq!(episode.starting_state.id(), 0);
 
-        // the total negative reward should be the number of states traversed except the final state
-        let actual_reward = episode
-            .trajectory
+        // consecutive states in the trajectory should have contiguous IDs
+        for i in 0..episode.trajectory.len() - 1 {
+            assert!(
+                episode.trajectory[i]
+                    .id()
+                    .abs_diff(episode.trajectory[i + 1].id())
+                    <= 1
+            );
+        }
+
+        // the total reward should be the number of states traversed except the final state
+        let actual_reward: f64 = episode.trajectory[1..] // skip the starting state
             .iter()
             .filter(|&&state| !env.is_terminal(state))
             .map(|_| -1f64)

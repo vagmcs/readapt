@@ -19,7 +19,7 @@ use std::collections::HashMap;
 /// #[derive(Debug, Hash, PartialEq, Eq)]
 /// struct S { id: usize }
 ///
-/// #[derive(Debug, PartialEq)]
+/// #[derive(Debug, PartialEq, Eq)]
 /// struct A { id: usize }
 ///
 /// impl State for S {
@@ -100,6 +100,7 @@ mod tests {
         }
     }
 
+    #[derive(Debug, PartialEq, Eq)]
     struct A {
         id: usize,
     }
