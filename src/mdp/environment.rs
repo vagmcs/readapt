@@ -1,4 +1,6 @@
 use crate::mdp::model::{Action, State, MDP};
+use rand::distributions::WeightedIndex;
+use rand::prelude::*;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
@@ -27,7 +29,7 @@ impl Display for GridError {
 /// Represents a movement action on the grid world environment.
 /// There are four possible actions, moving north or up, south or down,
 /// east or left, and west or right on the 2-dimensional grid.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Move {
     North,
     South,
@@ -60,8 +62,8 @@ impl Action for Move {
 #[derive(Debug, Eq)]
 pub struct Tile {
     id: usize,
-    x: usize,
-    y: usize,
+    pub x: usize,
+    pub y: usize,
 }
 
 impl State for Tile {
@@ -420,69 +422,24 @@ impl GridWorld {
 }
 
 impl MDP<Tile, Move> for GridWorld {
-    #[inline(always)]
     fn n_states(&self) -> usize {
         self.rows * self.columns
     }
 
-    #[inline(always)]
     fn n_actions(&self) -> usize {
         Move::len()
     }
 
-    fn is_terminal(&self, state: &Tile) -> bool {
-        self.terminal_states.contains(&state.id())
+    fn states(&self) -> &[Tile] {
+        &self.states
     }
 
-    fn next_states(&self, state: &Tile, action: &Move) -> Vec<&Tile> {
-        match action {
-            Move::North => {
-                let next_state = self
-                    .states
-                    .iter()
-                    .find(|s| s.x == state.x && s.y == if state.y == 0 { 0 } else { state.y - 1 })
-                    .unwrap_or_else(|| self.states.iter().find(|s| s.id == state.id).unwrap());
-                vec![next_state]
-            }
-            Move::South => {
-                let next_state = self
-                    .states
-                    .iter()
-                    .find(|s| {
-                        s.x == state.x
-                            && s.y
-                                == if state.y == self.rows - 1 {
-                                    self.rows - 1
-                                } else {
-                                    state.y + 1
-                                }
-                    })
-                    .unwrap_or_else(|| self.states.iter().find(|s| s.id == state.id).unwrap());
-                vec![next_state]
-            }
-            Move::East => {
-                let next_state = self
-                    .states
-                    .iter()
-                    .find(|s| {
-                        s.x == if state.x == self.columns - 1 {
-                            self.columns - 1
-                        } else {
-                            state.x + 1
-                        } && s.y == state.y
-                    })
-                    .unwrap_or_else(|| self.states.iter().find(|s| s.id == state.id).unwrap());
-                vec![next_state]
-            }
-            Move::West => {
-                let next_state = self
-                    .states
-                    .iter()
-                    .find(|s| s.x == if state.x == 0 { 0 } else { state.x - 1 } && s.y == state.y)
-                    .unwrap_or_else(|| self.states.iter().find(|s| s.id == state.id).unwrap());
-                vec![next_state]
-            }
-        }
+    fn actions(&self) -> &[Move] {
+        &Move::ACTIONS
+    }
+
+    fn is_terminal(&self, state: &Tile) -> bool {
+        self.terminal_states.contains(&state.id())
     }
 
     fn transition_probability(&self, state: &Tile, action: &Move, next_state: &Tile) -> f64 {
@@ -492,11 +449,19 @@ impl MDP<Tile, Move> for GridWorld {
     fn reward(&self, state: &Tile, action: &Move, next_state: &Tile) -> f64 {
         self.rewards[state.id()][action.id()][next_state.id()]
     }
+
+    fn act(&self, state: &Tile, action: &Move) -> &Tile {
+        let probs = &self.transition_probabilities[state.id()][action.id()];
+        let next_state_id = WeightedIndex::new(probs)
+            .unwrap()
+            .sample(&mut rand::thread_rng());
+
+        &self.states()[next_state_id]
+    }
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::mdp::environment::{GridError, GridWorld};
 
     #[test]
