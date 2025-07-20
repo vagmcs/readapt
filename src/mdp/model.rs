@@ -4,10 +4,13 @@ use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum MDPError<'a, S: State> {
+    Empty,
     NoAction { state: &'a S },
     NoTransition { state: &'a S },
+    InvalidTransitionMatrix,
+    InvalidRewardMatrix,
 }
 
 impl<'a, S: State> Error for MDPError<'a, S> {}
@@ -15,11 +18,18 @@ impl<'a, S: State> Error for MDPError<'a, S> {}
 impl<'a, S: State> fmt::Display for MDPError<'a, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            MDPError::Empty => write!(f, "The MDP cannot be empty."),
             MDPError::NoAction { state } => {
                 write!(f, "No action available for state {}.", state.id())
             }
             MDPError::NoTransition { state } => {
                 write!(f, "No transition is available for state {}.", state.id())
+            }
+            MDPError::InvalidTransitionMatrix => {
+                write!(f, "The transition matrix is invalid. Either the dimensions are incorrect or the probabilities do not sum to 1.")
+            }
+            MDPError::InvalidRewardMatrix => {
+                write!(f, "The reward matrix has invalid dimensions.")
             }
         }
     }

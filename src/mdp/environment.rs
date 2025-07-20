@@ -1,30 +1,9 @@
-use crate::mdp::model::{Action, State, MDP};
+use crate::mdp::model::{Action, MDPError, State, MDP};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use std::collections::HashSet;
-use std::error::Error;
 use std::fmt;
-use std::fmt::Display;
 use std::hash::Hash;
-
-#[derive(Debug, PartialEq)]
-pub enum GridError {
-    Empty,
-    InvalidTransitionMatrix,
-    InvalidRewardMatrix,
-}
-
-impl Error for GridError {}
-
-impl Display for GridError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GridError::Empty => write!(f, "Grid cannot be empty."),
-            GridError::InvalidTransitionMatrix => write!(f, "Transition matrix should have dimensions SxAxS, where S is the number of states and A is the number of movement actions."),
-            GridError::InvalidRewardMatrix => write!(f, "Reward matrix should have dimensions SxAxS, where S is the number of states and A is the number of movement actions.")
-        }
-    }
-}
 
 /// Represents a movement action on the grid world environment.
 /// There are four possible actions, moving north or up, south or down,
@@ -174,7 +153,13 @@ impl fmt::Display for GridWorld {
 }
 
 impl GridWorld {
-    /// Creates a grid world given the transition and reward matrices.
+    /// Creates a custom Grid World.
+    ///
+    /// # Notes
+    ///
+    /// 1. The grid cannot be empty.
+    /// 2. The transition and reward matrices must have dimensions SxAxS, where S is the number of states and A the number of actions.
+    /// 3. The transition probabilities for each action must sum to 1.
     ///
     /// # Arguments
     ///
@@ -182,32 +167,39 @@ impl GridWorld {
     /// - `columns` - number of columns
     /// - `transition_probabilities` - a matrix of dimension SxAxS holding the movement probabilities for each triplet (s, a, s')
     /// - `rewards` - a matrix of dimension SxAxS holding the rewards for each triplet (s, a, s')
-    /// - `is_terminal_state` - a function checking if any given tile state is terminal
-    pub fn new(
+    /// - `is_terminal_state` - a function returning true when any given tile state is terminal
+    pub fn new<'a>(
         rows: usize,
         columns: usize,
         transition_probabilities: Vec<Vec<Vec<f64>>>,
         rewards: Vec<Vec<Vec<f64>>>,
         is_terminal_state: fn(&Tile) -> bool,
-    ) -> Result<Self, GridError> {
+    ) -> Result<Self, MDPError<'a, Tile>> {
         let n_states = rows * columns;
         let mut states = Vec::with_capacity(n_states);
         let mut terminal_states = HashSet::new();
 
         if rows == 0 || columns == 0 {
-            return Err(GridError::Empty);
+            return Err(MDPError::Empty);
         }
         if transition_probabilities.len() != n_states
             || transition_probabilities[0].len() != Move::len()
             || transition_probabilities[0][0].len() != n_states
         {
-            return Err(GridError::InvalidTransitionMatrix);
+            return Err(MDPError::InvalidTransitionMatrix);
+        }
+        for t in transition_probabilities.iter() {
+            for a in t.iter() {
+                if a.iter().sum::<f64>() != 1f64 {
+                    return Err(MDPError::InvalidTransitionMatrix);
+                }
+            }
         }
         if rewards.len() != n_states
             || rewards[0].len() != Move::len()
             || rewards[0][0].len() != n_states
         {
-            return Err(GridError::InvalidRewardMatrix);
+            return Err(MDPError::InvalidRewardMatrix);
         }
 
         for r in 0..rows {
@@ -236,26 +228,160 @@ impl GridWorld {
         })
     }
 
-    /// Creates a grid where each movement action has a fixed success probability,
-    /// and each state has a fixed reward, that is, they are independent of state
-    /// transition triplets. For instance, all triplets of the form (s, a, s'), will
-    /// have the same transition probability for the same movement action a and the same
-    /// reward for the same destination state s'.
+    /// Creates a Grid World where each movement action has a state-independent transition model,
+    /// and a fixed reward, that is, they are independent of state transition triplets.
+    ///
+    /// The transition model is a currying function that takes a movement action and returns
+    /// a directional function. The directional function specifies the probability of moving'
+    /// in a specific direction given the action. For instace, if the action is `Move::North`,
+    /// then the probability of actually moving north could be 80%, while the probability of
+    /// moving in another direction due to uncertainty could be 10% for east and 10% for west.
     ///
     /// # Arguments
     ///
     /// - `rows` - number of rows
     /// - `columns` - number of columns
-    /// - `action_prob` - a function assigning a probability to any given movement action
-    /// - `state_reward` - a function assigning a reward to any given tile state
+    /// - `is_wall` - a function checking if any given tile is a wall
+    /// - `transition_model` - a currying function that takes a movement action and returns a directional function
+    /// - `reward` - a function assigning a reward to any given tile state
     /// - `is_terminal_state` - a function checking if any given tile state is terminal
-    pub fn state_independent(
+    pub fn from<'a>(
         rows: usize,
         columns: usize,
-        action_prob: fn(&Move) -> f64,
-        state_reward: fn(&Tile) -> f64,
+        is_wall: fn(&Tile) -> bool,
+        transition_model: fn(&Move) -> fn(&Move) -> f64,
+        reward: fn(&Tile) -> f64,
         is_terminal_state: fn(&Tile) -> bool,
-    ) -> Self {
+    ) -> Result<Self, MDPError<'a, Tile>> {
+        // Check if the grid is empty
+        if rows == 0 || columns == 0 {
+            return Err(MDPError::Empty);
+        }
+
+        let n_states = rows * columns;
+        let mut states = Vec::with_capacity(n_states);
+        let mut terminal_states = HashSet::new();
+
+        // Create the states
+        for r in 0..rows {
+            for c in 0..columns {
+                let state = Tile {
+                    id: r * columns + c,
+                    x: r,
+                    y: c,
+                };
+
+                if is_terminal_state(&state) {
+                    terminal_states.insert(state.id());
+                }
+
+                states.push(state);
+            }
+        }
+
+        let mut transition_probabilities = vec![vec![vec![0.0; n_states]; Move::len()]; n_states];
+        let mut rewards = vec![vec![vec![0.0; n_states]; Move::len()]; n_states];
+
+        for state in states.iter() {
+            for action in Move::ACTIONS.iter() {
+                // North state relative to the current state
+                let north_state_id = if state.x == 0 {
+                    state.id
+                } else {
+                    state.y + (state.x - 1) * columns
+                };
+
+                if !is_wall(&states[north_state_id]) {
+                    transition_probabilities[state.id][action.id()][north_state_id] +=
+                        transition_model(action)(&Move::North);
+
+                    rewards[state.id][action.id()][north_state_id] =
+                        reward(&states[north_state_id]);
+                }
+
+                // South state relative to the current state
+                let south_state_id = if state.x == rows - 1 {
+                    state.id
+                } else {
+                    state.y + (state.x + 1) * columns
+                };
+
+                if !is_wall(&states[south_state_id]) {
+                    transition_probabilities[state.id][action.id()][south_state_id] +=
+                        transition_model(action)(&Move::South);
+
+                    rewards[state.id][action.id()][south_state_id] =
+                        reward(&states[south_state_id]);
+                }
+
+                // West state relative to the current state
+                let west_state_id = if state.y == 0 {
+                    state.id
+                } else {
+                    (state.y - 1) + state.x * columns
+                };
+
+                if !is_wall(&states[west_state_id]) {
+                    transition_probabilities[state.id][action.id()][west_state_id] +=
+                        transition_model(action)(&Move::West);
+
+                    rewards[state.id][action.id()][west_state_id] = reward(&states[west_state_id]);
+                }
+
+                // East state relative to the current state
+                let east_state_id = if state.y == columns - 1 {
+                    state.id
+                } else {
+                    (state.y + 1) + state.x * columns
+                };
+
+                if !is_wall(&states[east_state_id]) {
+                    transition_probabilities[state.id][action.id()][east_state_id] +=
+                        transition_model(action)(&Move::East);
+
+                    rewards[state.id][action.id()][east_state_id] = reward(&states[east_state_id]);
+                }
+            }
+        }
+
+        // Check if the transition probabilities sum to 1 for each action
+        for t in transition_probabilities.iter() {
+            for a in t.iter() {
+                if a.iter().sum::<f64>() != 1f64 {
+                    return Err(MDPError::InvalidTransitionMatrix);
+                }
+            }
+        }
+
+        Ok(Self {
+            rows,
+            columns,
+            states,
+            transition_probabilities,
+            rewards,
+            terminal_states,
+        })
+    }
+
+    /// In the corner problem the upper-left corner and the bottom-right corner
+    /// are self-absorbing terminal states. Each transition that is not terminal
+    /// results in a reward penalty of -1. Agent movement success is user-defined.
+    ///
+    /// # Arguments
+    ///
+    /// - `rows` - number of rows
+    /// - `columns` - number of columns
+    /// - `uncertainty` - the probability of an action to fail, thus remaining in the same state
+    pub fn corner<'a>(
+        rows: usize,
+        columns: usize,
+        uncertainty: f64,
+    ) -> Result<Self, MDPError<'a, Tile>> {
+        // Check if the grid is empty
+        if rows == 0 || columns == 0 {
+            return Err(MDPError::Empty);
+        }
+
         let n_states = rows * columns;
         let mut states = Vec::with_capacity(n_states);
         let mut transition_probabilities = vec![vec![vec![0.0; n_states]; Move::len()]; n_states];
@@ -270,92 +396,11 @@ impl GridWorld {
                     y: c,
                 };
 
-                for action in Move::ACTIONS.iter() {
-                    let next_state_id = match action {
-                        Move::North => {
-                            if r == 0 {
-                                c
-                            } else {
-                                c + (r - 1) * columns
-                            }
-                        }
-                        Move::South => {
-                            if r == rows - 1 {
-                                c + (rows - 1) * columns
-                            } else {
-                                c + (r + 1) * columns
-                            }
-                        }
-                        Move::East => {
-                            if c == columns - 1 {
-                                (columns - 1) + r * columns
-                            } else {
-                                (c + 1) + r * columns
-                            }
-                        }
-                        Move::West => {
-                            if c == 0 {
-                                r * columns
-                            } else {
-                                (c - 1) + r * columns
-                            }
-                        }
-                    };
-
-                    transition_probabilities[state.id][action.id()][next_state_id] =
-                        action_prob(action);
-
-                    rewards[state.id][action.id()][next_state_id] = state_reward(&state);
-
-                    if is_terminal_state(&state) {
-                        terminal_states.insert(state.id());
-                    }
-                }
-
-                states.push(state);
-            }
-        }
-
-        Self {
-            rows,
-            columns,
-            states,
-            transition_probabilities,
-            rewards,
-            terminal_states,
-        }
-    }
-
-    /// In the corner problem the upper-left corner and the bottom-right corner
-    /// are self-absorbing terminal states. The agent can move in a top-left-down-right way,
-    /// where each transition that is not terminal results in a reward penalty of -1.
-    /// Agent movements success is user-defined.
-    ///
-    /// # Arguments
-    ///
-    /// - `rows` - number of rows
-    /// - `columns` - number of columns
-    /// - `uncertainty` - action uncertainty, that is, the probability of an action to fail, thus remaining in the same state.
-    pub fn corner(rows: usize, columns: usize, uncertainty: f64) -> Self {
-        let n_states = rows * columns;
-        let mut states = Vec::with_capacity(n_states);
-        let mut transition_probabilities = vec![vec![vec![0.0; Move::len()]; n_states]; n_states];
-        let mut rewards = vec![vec![vec![0.0; Move::len()]; n_states]; n_states];
-        let mut terminal_states = HashSet::new();
-
-        for r in 0..rows {
-            for c in 0..columns {
-                let state = Tile {
-                    id: r * columns + c,
-                    x: r,
-                    y: c,
-                };
-
                 if state.id == 0 || state.id == n_states - 1 {
                     terminal_states.insert(state.id);
                     // Self absorbing states (all actions result to the same state)
                     for action in Move::ACTIONS.iter() {
-                        transition_probabilities[state.id][state.id][action.id()] = 1f64;
+                        transition_probabilities[state.id][action.id()][state.id] = 1f64;
                     }
                 } else {
                     for action in Move::ACTIONS.iter() {
@@ -392,16 +437,16 @@ impl GridWorld {
 
                         // find adjacent
                         if state.id == next_state_id {
-                            transition_probabilities[state.id][next_state_id][action.id()] = 1f64;
+                            transition_probabilities[state.id][action.id()][next_state_id] = 1f64;
                         } else {
-                            transition_probabilities[state.id][next_state_id][action.id()] =
+                            transition_probabilities[state.id][action.id()][next_state_id] =
                                 uncertainty;
-                            transition_probabilities[state.id][state.id][action.id()] =
+                            transition_probabilities[state.id][action.id()][state.id] =
                                 1f64 - uncertainty;
                         }
                         // all transitions from a non-terminal state should have a negative reward in order to
                         // force the optimal policy to account for the shorter amount of transitions.
-                        rewards[state.id][next_state_id][action.id()] = -1f64;
+                        rewards[state.id][action.id()][next_state_id] = -1f64;
                     }
                 }
 
@@ -410,14 +455,23 @@ impl GridWorld {
             }
         }
 
-        Self {
+        // Check if the transition probabilities sum to 1 for each action
+        for t in transition_probabilities.iter() {
+            for a in t.iter() {
+                if a.iter().sum::<f64>() != 1f64 {
+                    return Err(MDPError::InvalidTransitionMatrix);
+                }
+            }
+        }
+
+        Ok(Self {
             rows,
             columns,
             states,
             transition_probabilities,
             rewards,
             terminal_states,
-        }
+        })
     }
 }
 
@@ -462,41 +516,81 @@ impl MDP<Tile, Move> for GridWorld {
 
 #[cfg(test)]
 mod tests {
-    use crate::mdp::environment::{GridError, GridWorld};
+    use crate::mdp::{
+        environment::{GridWorld, Move},
+        model::MDPError,
+    };
 
     #[test]
-    fn empty_world() {
-        if let Err(error) = GridWorld::new(0, 0, Vec::new(), Vec::new(), |_| false) {
-            assert_eq!(error, GridError::Empty);
+    fn empty_grid() {
+        if let Err(error) = GridWorld::new(0, 0, vec![], vec![], |_| false) {
+            assert_eq!(error, MDPError::Empty);
         }
     }
 
     #[test]
     fn invalid_matrices() {
+        // The transition matrix does not have proper dimensions
         let transitions = vec![vec![vec![0f64; 4]; 16]; 16];
         let rewards = vec![vec![vec![0f64; 16]; 4]; 16];
 
         if let Err(error) = GridWorld::new(4, 4, transitions, rewards, |_| false) {
-            assert_eq!(error, GridError::InvalidTransitionMatrix);
+            assert_eq!(error, MDPError::InvalidTransitionMatrix);
         }
 
+        // The transition matrix does not sum to 1
         let transitions = vec![vec![vec![0f64; 16]; 4]; 16];
+        let rewards = vec![vec![vec![0f64; 16]; 4]; 16];
+
+        if let Err(error) = GridWorld::new(4, 4, transitions, rewards, |_| false) {
+            assert_eq!(error, MDPError::InvalidTransitionMatrix);
+        }
+
+        // The reward matrix does not have proper dimensions
+        let transitions = vec![vec![vec![1.0 / 16.0; 16]; 4]; 16];
         let rewards = vec![vec![vec![0f64; 4]; 16]; 16];
 
         if let Err(error) = GridWorld::new(4, 4, transitions, rewards, |_| false) {
-            assert_eq!(error, GridError::InvalidRewardMatrix);
+            assert_eq!(error, MDPError::InvalidRewardMatrix);
         }
     }
 
     #[test]
     fn state_independent_world() {
-        let grid = GridWorld::state_independent(
+        let grid = GridWorld::from(
             2,
             2,
-            |_| 0.8,
+            |_| false, // there are no walls
+            |a| match a {
+                Move::North => |d| match d {
+                    Move::North => 0.8,
+                    Move::South => 0.0,
+                    Move::East => 0.1,
+                    Move::West => 0.1,
+                },
+                Move::South => |d| match d {
+                    Move::North => 0.0,
+                    Move::South => 0.8,
+                    Move::East => 0.1,
+                    Move::West => 0.1,
+                },
+                Move::East => |d| match d {
+                    Move::North => 0.1,
+                    Move::South => 0.1,
+                    Move::East => 0.8,
+                    Move::West => 0.0,
+                },
+                Move::West => |d| match d {
+                    Move::North => 0.1,
+                    Move::South => 0.1,
+                    Move::East => 0.0,
+                    Move::West => 0.8,
+                },
+            },
             |s| if s.id == 3 { 10f64 } else { -1f64 },
             |s| s.id == 3,
-        );
+        )
+        .unwrap();
 
         assert_eq!(grid.rows, 2);
         assert_eq!(grid.columns, 2);
@@ -505,10 +599,10 @@ mod tests {
 
     #[test]
     fn corner_problem() {
-        let grid = GridWorld::corner(2, 2, 0.8);
+        let grid = GridWorld::corner(3, 3, 0.8).unwrap();
 
-        assert_eq!(grid.rows, 2);
-        assert_eq!(grid.columns, 2);
-        assert_eq!(grid.states.len(), 4);
+        assert_eq!(grid.rows, 3);
+        assert_eq!(grid.columns, 3);
+        assert_eq!(grid.terminal_states.len(), 2);
     }
 }
