@@ -4,7 +4,7 @@
     "color": "EEEEEE"
   },
   "CHECKS": {
-    "regexp": "^(build|chore|ci|docs|feat|fix|perf|refactor|release|test|security)\\!?: [A-Z].*[A-Za-z]$",
+    "regexp": "^(build|chore|ci|docs|feat|fix|perf|refactor|release|test|security)\\!?: [A-Z].*[A-Za-z0-9]$",
     "ignoreLabels" : ["skip changelog"]
   },
   "MESSAGES": {
