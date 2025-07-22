@@ -16,6 +16,8 @@ pub trait Optimizer<'a, S: State, A: Action, M: MDP<S, A>> {
 pub struct PolicyIteration {
     /// Small positive number determining the accuracy of estimation.
     pub theta: f64,
+    // Maximum iterations for policy evaluation.
+    pub max_iterations: usize,
 }
 
 impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for PolicyIteration {
@@ -33,7 +35,7 @@ impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for PolicyIte
 
         loop {
             // policy evaluation
-            loop {
+            for _ in 0..self.max_iterations {
                 delta = 0f64;
                 for state in mdp.states() {
                     let value = values[state.id()];
@@ -94,6 +96,8 @@ impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for PolicyIte
 pub struct ValueIteration {
     /// Small positive number determining the accuracy of estimation.
     pub theta: f64,
+    // Maximum iterations for policy evaluation.
+    pub max_iterations: usize,
 }
 
 impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for ValueIteration {
@@ -102,7 +106,7 @@ impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for ValueIter
         let mut values = vec![0.0; mdp.n_states()];
 
         // policy evaluation
-        loop {
+        for _ in 0..self.max_iterations {
             delta = 0f64;
             for state in mdp.states() {
                 let value = values[state.id()];
@@ -207,9 +211,12 @@ mod tests {
         )
         .unwrap();
 
-        let optimal_policy = PolicyIteration { theta: 1e-9 }
-            .find_optimal_policy(&grid)
-            .unwrap();
+        let optimal_policy = PolicyIteration {
+            theta: 1e-6,
+            max_iterations: 100000,
+        }
+        .find_optimal_policy(&grid)
+        .unwrap();
 
         assert_eq!(
             optimal_policy.select_action(&grid.states()[0]),
@@ -295,9 +302,12 @@ mod tests {
         )
         .unwrap();
 
-        let optimal_policy = ValueIteration { theta: 1e-6 }
-            .find_optimal_policy(&grid)
-            .unwrap();
+        let optimal_policy = ValueIteration {
+            theta: 1e-6,
+            max_iterations: 100000,
+        }
+        .find_optimal_policy(&grid)
+        .unwrap();
 
         assert_eq!(
             optimal_policy.select_action(&grid.states()[0]),
