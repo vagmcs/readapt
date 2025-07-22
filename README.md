@@ -7,9 +7,13 @@
     <img src="https://github.com/vagmcs/python-blueprint/actions/workflows/tester.yml/badge.svg?event=push&branch=main" alt="Test">
 </a>
 
-Readapt provides a library for reinforcement learning written in Rust.
+Readapt provides a library for reinforcement learning in Rust.
 
 > The term *readapt* signifies an artificial agent caught in a continuous cycle of learning and relearning — persistently stuck in a time loop where it strives to break free by failing and adapting through repeated attempts to achieve a goal.
+
+## Contributing
+
+Want to contribute? Read our [contributing guide](CONTRIBUTING.md).
 
 ## License
 
