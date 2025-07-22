@@ -16,6 +16,7 @@ pub trait Optimizer<'a, S: State, A: Action, M: MDP<S, A>> {
 pub struct PolicyIteration {
     /// Small positive number determining the accuracy of estimation.
     pub theta: f64,
+    // Maximum iterations for policy evaluation.
     pub max_iterations: usize,
 }
 
@@ -95,6 +96,7 @@ impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for PolicyIte
 pub struct ValueIteration {
     /// Small positive number determining the accuracy of estimation.
     pub theta: f64,
+    // Maximum iterations for policy evaluation.
     pub max_iterations: usize,
 }
 
