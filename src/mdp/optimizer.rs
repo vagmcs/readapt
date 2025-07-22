@@ -3,12 +3,19 @@ use crate::mdp::policy::Policy;
 use rand::Rng;
 use std::collections::HashMap;
 
+/// Represents any algorithm that searches for an optimal policy given a Markov Decision Process.
 pub trait Optimizer<'a, S: State, A: Action, M: MDP<S, A>> {
+    /// Returns an optimal policy for the provided MDP.
+    ///
+    /// # Arguments
+    ///
+    /// - `mdp` - Markov Decision Process.
     fn find_optimal_policy(&self, mdp: &'a M) -> Result<Policy<'a, S, A>, MDPError<'a, S>>;
 }
 
 pub struct PolicyIteration {
-    theta: f64,
+    /// Small positive number determining the accuracy of estimation.
+    pub theta: f64,
 }
 
 impl<'a, S: State, A: Action, M: MDP<S, A>> Optimizer<'a, S, A, M> for PolicyIteration {
