@@ -283,6 +283,14 @@ impl GridWorld {
         let mut rewards = vec![vec![vec![0.0; n_states]; Move::len()]; n_states];
 
         for state in states.iter() {
+            // Terminal states are dead ends
+            if is_terminal_state(state) {
+                for action in Move::ACTIONS.iter() {
+                    transition_probabilities[state.id()][action.id()][state.id()] = 1.0;
+                }
+                continue;
+            }
+
             for action in Move::ACTIONS.iter() {
                 // North state relative to the current state
                 let north_state_id = if state.x == 0 {
@@ -291,7 +299,10 @@ impl GridWorld {
                     state.y + (state.x - 1) * columns
                 };
 
-                if !is_wall(&states[north_state_id]) {
+                if is_wall(&states[north_state_id]) {
+                    transition_probabilities[state.id][action.id()][state.id] +=
+                        transition_model(action)(&Move::North);
+                } else {
                     transition_probabilities[state.id][action.id()][north_state_id] +=
                         transition_model(action)(&Move::North);
 
@@ -306,7 +317,10 @@ impl GridWorld {
                     state.y + (state.x + 1) * columns
                 };
 
-                if !is_wall(&states[south_state_id]) {
+                if is_wall(&states[south_state_id]) {
+                    transition_probabilities[state.id][action.id()][state.id] +=
+                        transition_model(action)(&Move::South);
+                } else {
                     transition_probabilities[state.id][action.id()][south_state_id] +=
                         transition_model(action)(&Move::South);
 
@@ -321,7 +335,10 @@ impl GridWorld {
                     (state.y - 1) + state.x * columns
                 };
 
-                if !is_wall(&states[west_state_id]) {
+                if is_wall(&states[west_state_id]) {
+                    transition_probabilities[state.id][action.id()][state.id] +=
+                        transition_model(action)(&Move::West);
+                } else {
                     transition_probabilities[state.id][action.id()][west_state_id] +=
                         transition_model(action)(&Move::West);
 
@@ -335,7 +352,10 @@ impl GridWorld {
                     (state.y + 1) + state.x * columns
                 };
 
-                if !is_wall(&states[east_state_id]) {
+                if is_wall(&states[east_state_id]) {
+                    transition_probabilities[state.id][action.id()][state.id] +=
+                        transition_model(action)(&Move::East);
+                } else {
                     transition_probabilities[state.id][action.id()][east_state_id] +=
                         transition_model(action)(&Move::East);
 
