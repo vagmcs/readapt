@@ -1,38 +1,20 @@
 use crate::mdp::policy::Policy;
-use std::error::Error;
-use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
+use thiserror::Error;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Error)]
 pub enum MDPError<'a, S: State> {
+    #[error("The MDP cannot be empty.")]
     Empty,
+    #[error("No action available for state {state}.", state = state.id())]
     NoAction { state: &'a S },
+    #[error("No transition is available for state {state}.", state = state.id())]
     NoTransition { state: &'a S },
+    #[error("The transition matrix is invalid. Either the dimensions are incorrect or the probabilities do not sum to 1.")]
     InvalidTransitionMatrix,
+    #[error("The reward matrix has invalid dimensions.")]
     InvalidRewardMatrix,
-}
-
-impl<'a, S: State> Error for MDPError<'a, S> {}
-
-impl<'a, S: State> fmt::Display for MDPError<'a, S> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            MDPError::Empty => write!(f, "The MDP cannot be empty."),
-            MDPError::NoAction { state } => {
-                write!(f, "No action available for state {}.", state.id())
-            }
-            MDPError::NoTransition { state } => {
-                write!(f, "No transition is available for state {}.", state.id())
-            }
-            MDPError::InvalidTransitionMatrix => {
-                write!(f, "The transition matrix is invalid. Either the dimensions are incorrect or the probabilities do not sum to 1.")
-            }
-            MDPError::InvalidRewardMatrix => {
-                write!(f, "The reward matrix has invalid dimensions.")
-            }
-        }
-    }
 }
 
 /// Represents an episode of an MDP. Each such episode has a starting state, a trajectory
