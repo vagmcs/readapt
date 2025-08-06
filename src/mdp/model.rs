@@ -5,15 +5,15 @@ use thiserror::Error;
 
 #[derive(Debug, PartialEq, Eq, Error)]
 pub enum MDPError<'a, S: State> {
-    #[error("The MDP cannot be empty")]
+    #[error("The MDP cannot be empty.")]
     Empty,
-    #[error("No action available for state {}", state.id())]
+    #[error("No action available for state {state}.", state = state.id())]
     NoAction { state: &'a S },
-    #[error("No transition is available for state {}", state.id())]
+    #[error("No transition is available for state {state}.", state = state.id())]
     NoTransition { state: &'a S },
-    #[error("The transition matrix is invalid. Either the dimensions are incorrect or the probabilities do not sum to 1")]
+    #[error("The transition matrix is invalid. Either the dimensions are incorrect or the probabilities do not sum to 1.")]
     InvalidTransitionMatrix,
-    #[error("The reward matrix has invalid dimensions")]
+    #[error("The reward matrix has invalid dimensions.")]
     InvalidRewardMatrix,
 }
 
